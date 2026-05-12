@@ -1,19 +1,8 @@
 const admin = require('firebase-admin');
 
 if (!admin.apps.length) {
-  // private key \n গুলো replace করো
   let privateKey = process.env.FIREBASE_PRIVATE_KEY || '';
-  
-  // \\n কে actual newline এ replace
-  privateKey = privateKey.replace(/\\n/g, '\n');
-  
-  // শুরু ও শেষের extra space সরাও
-  privateKey = privateKey.trim();
-  
-  // console log for debugging
-  console.log('Private Key starts with:', privateKey.substring(0, 27));
-  console.log('Private Key ends with:', privateKey.substring(privateKey.length - 25));
-  console.log('Private Key length:', privateKey.length);
+  privateKey = privateKey.replace(/\\n/g, '\n').trim();
   
   admin.initializeApp({
     credential: admin.credential.cert({
@@ -29,7 +18,7 @@ const db = admin.firestore();
 exports.handler = async (event) => {
   const headers = {
     'Access-Control-Allow-Origin': '*',
-    'Access-Control-Allow-Headers': 'Content-Type',
+    'Access-Control-Allow-Headers': 'Content-Type, Authorization',
     'Access-Control-Allow-Methods': 'POST, OPTIONS, GET'
   };
 
@@ -38,18 +27,16 @@ exports.handler = async (event) => {
   }
   
   if (event.httpMethod === 'GET') {
-    return { 
-      statusCode: 200, 
-      headers, 
-      body: JSON.stringify({ 
-        status: 'Function is working!',
-        keyStart: process.env.FIREBASE_PRIVATE_KEY ? process.env.FIREBASE_PRIVATE_KEY.substring(0, 27) : 'no key'
-      }) 
-    };
+    return { statusCode: 200, headers, body: JSON.stringify({ status: 'Function is working!' }) };
   }
 
   try {
-    const { email, password } = JSON.parse(event.body);
+    const body = JSON.parse(event.body);
+    const { email, password } = body;
+    
+    if (!email || !password) {
+      return { statusCode: 400, headers, body: JSON.stringify({ success: false, error: 'Email and password required' }) };
+    }
 
     const usersRef = db.collection('users');
     const snapshot = await usersRef.where('email', '==', email.toLowerCase().trim()).get();
@@ -87,11 +74,13 @@ exports.handler = async (event) => {
       })
     };
   } catch (error) {
+    console.error('Function error:', error);
     return { 
       statusCode: 500, 
       headers, 
       body: JSON.stringify({ 
-        error: 'Internal error', 
+        success: false,
+        error: 'Internal server error', 
         message: error.message 
       }) 
     };
