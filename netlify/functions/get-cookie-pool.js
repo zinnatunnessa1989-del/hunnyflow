@@ -41,9 +41,16 @@ exports.handler = async (event) => {
         id: doc.id,
         gmail: data.gmail || '',
         cookie: data.cookie || '',
+        subscriptionId: data.subscriptionId || '',
+        subscriptionName: data.subscriptionName || '',
         assignedUsers: data.assignedUsers || [],
         maxSlots: data.maxSlots || 20,
-        isActive: data.active || false
+        active: data.active || false,
+        createdAt: data.createdAt || '',
+        isActive: data.active || false,
+        assignedTo: null,
+        assignedAt: null,
+        expiresAt: null
       });
     });
 
@@ -51,8 +58,10 @@ exports.handler = async (event) => {
       statusCode: 200,
       headers,
       body: JSON.stringify({
-        data: accounts,
-        hash: 'ok'
+        data: accounts,  // সরাসরি data, encrypted না!
+        pool: accounts,   // pool নামেও পাঠাও
+        hash: 'ok',
+        success: true
       })
     };
   } catch (error) {
