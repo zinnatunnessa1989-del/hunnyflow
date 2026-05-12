@@ -38,25 +38,31 @@ exports.handler = async (event) => {
       return { statusCode: 400, headers, body: JSON.stringify({ success: false, error: 'Email and password required' }) };
     }
 
+    // সব users fetch করে JavaScript-এ filter
     const usersRef = db.collection('users');
-    const snapshot = await usersRef.where('email', '==', email.toLowerCase().trim()).get();
+    const allUsers = await usersRef.get();
+    
+    let foundUser = null;
+    allUsers.forEach(doc => {
+      const data = doc.data();
+      if (data.email && data.email.toLowerCase().trim() === email.toLowerCase().trim()) {
+        foundUser = { id: doc.id, ...data };
+      }
+    });
 
-    if (snapshot.empty) {
+    if (!foundUser) {
       return { statusCode: 401, headers, body: JSON.stringify({ success: false, error: 'Invalid credentials' }) };
     }
 
-    const userDoc = snapshot.docs[0];
-    const userData = userDoc.data();
-
-    if (userData.password !== password) {
+    if (foundUser.password !== password) {
       return { statusCode: 401, headers, body: JSON.stringify({ success: false, error: 'Invalid credentials' }) };
     }
 
-    if (!userData.verified) {
+    if (!foundUser.verified) {
       return { statusCode: 403, headers, body: JSON.stringify({ success: false, error: 'Email not verified', needsVerify: true }) };
     }
 
-    if (userData.blocked) {
+    if (foundUser.blocked) {
       return { statusCode: 403, headers, body: JSON.stringify({ success: false, error: 'Account blocked' }) };
     }
 
@@ -67,9 +73,9 @@ exports.handler = async (event) => {
       headers,
       body: JSON.stringify({
         success: true,
-        userId: userDoc.id,
-        email: userData.email,
-        name: userData.name,
+        userId: foundUser.id,
+        email: foundUser.email,
+        name: foundUser.name,
         token: token
       })
     };
