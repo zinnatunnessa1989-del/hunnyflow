@@ -1,7 +1,19 @@
 const admin = require('firebase-admin');
 
 if (!admin.apps.length) {
-  const privateKey = process.env.FIREBASE_PRIVATE_KEY.replace(/\\n/g, '\n');
+  // private key \n গুলো replace করো
+  let privateKey = process.env.FIREBASE_PRIVATE_KEY || '';
+  
+  // \\n কে actual newline এ replace
+  privateKey = privateKey.replace(/\\n/g, '\n');
+  
+  // শুরু ও শেষের extra space সরাও
+  privateKey = privateKey.trim();
+  
+  // console log for debugging
+  console.log('Private Key starts with:', privateKey.substring(0, 27));
+  console.log('Private Key ends with:', privateKey.substring(privateKey.length - 25));
+  console.log('Private Key length:', privateKey.length);
   
   admin.initializeApp({
     credential: admin.credential.cert({
@@ -26,7 +38,14 @@ exports.handler = async (event) => {
   }
   
   if (event.httpMethod === 'GET') {
-    return { statusCode: 200, headers, body: JSON.stringify({ status: 'Function is working!' }) };
+    return { 
+      statusCode: 200, 
+      headers, 
+      body: JSON.stringify({ 
+        status: 'Function is working!',
+        keyStart: process.env.FIREBASE_PRIVATE_KEY ? process.env.FIREBASE_PRIVATE_KEY.substring(0, 27) : 'no key'
+      }) 
+    };
   }
 
   try {
@@ -68,6 +87,13 @@ exports.handler = async (event) => {
       })
     };
   } catch (error) {
-    return { statusCode: 500, headers, body: JSON.stringify({ error: 'Internal error', message: error.message }) };
+    return { 
+      statusCode: 500, 
+      headers, 
+      body: JSON.stringify({ 
+        error: 'Internal error', 
+        message: error.message 
+      }) 
+    };
   }
 };
