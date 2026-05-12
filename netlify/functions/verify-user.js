@@ -4,6 +4,9 @@ if (!admin.apps.length) {
   let privateKey = process.env.FIREBASE_PRIVATE_KEY || '';
   privateKey = privateKey.replace(/\\n/g, '\n').trim();
   
+  console.log('Initializing with project:', process.env.FIREBASE_PROJECT_ID);
+  console.log('Client email:', process.env.FIREBASE_CLIENT_EMAIL);
+  
   admin.initializeApp({
     credential: admin.credential.cert({
       projectId: process.env.FIREBASE_PROJECT_ID,
@@ -11,6 +14,7 @@ if (!admin.apps.length) {
       privateKey: privateKey
     })
   });
+  console.log('Firebase initialized successfully');
 }
 
 const db = admin.firestore();
@@ -38,31 +42,33 @@ exports.handler = async (event) => {
       return { statusCode: 400, headers, body: JSON.stringify({ success: false, error: 'Email and password required' }) };
     }
 
-    // সব users fetch করে JavaScript-এ filter
-    const usersRef = db.collection('users');
-    const allUsers = await usersRef.get();
+    console.log('Looking for email:', email);
     
-    let foundUser = null;
-    allUsers.forEach(doc => {
-      const data = doc.data();
-      if (data.email && data.email.toLowerCase().trim() === email.toLowerCase().trim()) {
-        foundUser = { id: doc.id, ...data };
-      }
-    });
+    // Try to get all users
+    const usersRef = db.collection('users');
+    const allUsers = await usersRef.limit(1).get();
+    console.log('Firestore connection OK, sample size:', allUsers.size);
 
-    if (!foundUser) {
+    const snapshot = await usersRef.where('email', '==', email.toLowerCase().trim()).get();
+    console.log('Query result size:', snapshot.size);
+
+    if (snapshot.empty) {
       return { statusCode: 401, headers, body: JSON.stringify({ success: false, error: 'Invalid credentials' }) };
     }
 
-    if (foundUser.password !== password) {
+    const userDoc = snapshot.docs[0];
+    const userData = userDoc.data();
+    console.log('Found user:', userData.email);
+
+    if (userData.password !== password) {
       return { statusCode: 401, headers, body: JSON.stringify({ success: false, error: 'Invalid credentials' }) };
     }
 
-    if (!foundUser.verified) {
+    if (!userData.verified) {
       return { statusCode: 403, headers, body: JSON.stringify({ success: false, error: 'Email not verified', needsVerify: true }) };
     }
 
-    if (foundUser.blocked) {
+    if (userData.blocked) {
       return { statusCode: 403, headers, body: JSON.stringify({ success: false, error: 'Account blocked' }) };
     }
 
@@ -73,21 +79,20 @@ exports.handler = async (event) => {
       headers,
       body: JSON.stringify({
         success: true,
-        userId: foundUser.id,
-        email: foundUser.email,
-        name: foundUser.name,
+        userId: userDoc.id,
+        email: userData.email,
+        name: userData.name,
         token: token
       })
     };
   } catch (error) {
-    console.error('Function error:', error);
+    console.error('Function error:', error.message, error.stack);
     return { 
       statusCode: 500, 
       headers, 
       body: JSON.stringify({ 
         success: false,
-        error: 'Internal server error', 
-        message: error.message 
+        error: error.message || 'Internal server error'
       }) 
     };
   }
