@@ -927,7 +927,9 @@ if (orderData.status === "confirmed") {
   throw new Error("Already confirmed");
 }
 
-  if (orderData.subscriptionId !== accountData.subscriptionId) {
+ // Allow subscription matching by name too
+if (orderData.subscriptionId !== accountData.subscriptionId && 
+    orderData.subscriptionName !== accountData.subscriptionName) {
     throw new Error("Subscription mismatch");
   }
 

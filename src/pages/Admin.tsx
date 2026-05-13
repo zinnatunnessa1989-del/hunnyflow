@@ -967,8 +967,9 @@ function OrdersPanel({ orders, accounts, r, adminUser, setTab }: {
     const order = safeOrders.find(o => o.id === orderId);
     
     // Ultra Shared subscription check
-    const isUltraShared = order?.subscriptionId === 'sub_shared' || 
-                          order?.subscriptionName?.toLowerCase().includes('ultra');
+    const isUltraShared = (order?.subscriptionId === 'sub_shared' || 
+                          order?.subscriptionName?.toLowerCase().includes('ultra') ||
+                          order?.type === 'shared');
     
     // Ultra Shared হলে account select করতে হবে
     if (isUltraShared && !accountId && safeAccounts.length > 0) {
@@ -1867,9 +1868,20 @@ function MessagesPanel({ convos, r, refresh }: {
         if (!cancelled) setLoadingMessages(false);
       }
     })();
-    const interval = setInterval(() => {
-  r();
-}, 5000);
+    // silent refresh - user বুঝবে না
+const interval = setInterval(async () => {
+  try {
+    const msgs = await getUserMessages(selectedUserId);
+    if (!cancelled && Array.isArray(msgs)) {
+      setMessages(prev => {
+        if (JSON.stringify(prev) !== JSON.stringify(msgs)) {
+          return msgs;
+        }
+        return prev;
+      });
+    }
+  } catch (error) {}
+}, 15000);
 
     return () => { cancelled = true; };clearInterval(interval);
   }, [selectedUserId, refresh]);
