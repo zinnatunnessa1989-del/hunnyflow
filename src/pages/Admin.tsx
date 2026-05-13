@@ -962,10 +962,30 @@ function OrdersPanel({ orders, accounts, r, adminUser, setTab }: {
 
   const handleConfirm = async (orderId: string, accountId?: string) => {
     if (!adminUser?.id) return;
+    
+    // order খুঁজে বের কর
+    const order = safeOrders.find(o => o.id === orderId);
+    
+    // Ultra Shared subscription check
+    const isUltraShared = order?.subscriptionId === 'sub_shared' || 
+                          order?.subscriptionName?.toLowerCase().includes('ultra');
+    
+    // Ultra Shared হলে account select করতে হবে
+    if (isUltraShared && !accountId && safeAccounts.length > 0) {
+      // account select করার modal দেখাবে
+      const matchingAccounts = safeAccounts.filter(acc => 
+        acc.subscriptionId === order?.subscriptionId || 
+        acc.subscriptionName === order?.subscriptionName
+      );
+      
+      if (matchingAccounts.length > 0) {
+        setAssignModal({ orderId, userId: order?.userId || '' });
+        return;
+      }
+    }
+    
     try {
       await confirmOrder(orderId, accountId || '', adminUser.id);
-
-    setTab?.('messages');
       setAssignModal(null);
       r();
     } catch (err) {
